@@ -28,6 +28,24 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
 
+  flask-api:
+    build: ../API 
+    ports:
+      - "5000:5000"
+    depends_on:
+      - cratedb
+    networks:
+      - crate-net
+    volumes:
+      - ../API:/app
+
+  data-generator:
+    build: ../data_generator
+    depends_on:
+      - flask-api
+    networks:
+      - crate-net
+
 volumes:
   cratedb_data: {}
   grafana-data: {}
