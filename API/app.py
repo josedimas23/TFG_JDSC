@@ -19,19 +19,38 @@ def generate_data():
 @app.route('/data', methods=['POST'])
 def insert_data():
     if request.is_json:
-        data = request.get_json()
+        try:
+            data = request.get_json()
+            # Si data es un diccionario, lo convertimos en una lista con un solo elemento
+            if isinstance(data, dict):
+                data = [data]
+            # Validar que data es una lista de diccionarios
+            if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
+                return jsonify({"error": "Formato de datos incorrecto"}), 400
+            # Validar cada conjunto de datos en la lista
+            for item in data:
+                if not all(key in item for key in ("id", "sensor_id", "temperature", "humidity", "co2")):
+                    return jsonify({"error": "Datos incompletos"}), 400
+                if not isinstance(item["id"], str) or not isinstance(item["sensor_id"], str):
+                    return jsonify({"error": "Tipos de datos incorrectos"}), 400
+                if not isinstance(item["temperature"], (int, float)) or not isinstance(item["humidity"], (int, float)) or not isinstance(item["co2"], (int, float)):
+                    return jsonify({"error": "Tipos de datos incorrectos"}), 400
+        except Exception as e:
+            return jsonify({"error": "Error al procesar JSON", "details": str(e)}), 400
     else:
-        data = generate_data()  # Genera datos simulados si no se envía JSON
-    query = {
-        "stmt": "INSERT INTO iot_data (id, sensor_id, temperature, humidity, co2) VALUES (?, ?, ?, ?, ?)",
-        "args": [data["id"], data["sensor_id"], data["temperature"], data["humidity"], data["co2"]]
-    }
-    response = requests.post(CRATE_URL, json=query)
-    
-    if response.status_code == 200:
-        return jsonify({"message": "Datos insertados", "data": data}), 200
-    else:
-        return jsonify({"error": "Error al insertar", "details": response.text}), 500
+        data = [generate_data()]  # Genera un solo conjunto de datos simulados si no se envía JSON
+
+    # Insertar cada conjunto de datos en la base de datos
+    for item in data:
+        query = {
+            "stmt": "INSERT INTO iot_data (id, sensor_id, temperature, humidity, co2) VALUES (?, ?, ?, ?, ?)",
+            "args": [item["id"], item["sensor_id"], item["temperature"], item["humidity"], item["co2"]]
+        }
+        response = requests.post(CRATE_URL, json=query)
+        if response.status_code != 200:
+            return jsonify({"error": "Error al insertar", "details": response.text}), 500
+
+    return jsonify({"message": "Datos insertados", "data": data}), 200
 
 @app.route('/data/all', methods=['GET'])
 def get_all_data():
