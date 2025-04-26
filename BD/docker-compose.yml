@@ -41,10 +41,14 @@ services:
 
   data-generator:
     build: ../data_generator
+    environment:
+      - DISPLAY=host.docker.internal:0.0  # Para habilitar la interfaz gráfica
     depends_on:
       - flask-api
     networks:
       - crate-net
+    volumes:
+      - ../tkinter_app:/app    
 
 volumes:
   cratedb_data: {}
