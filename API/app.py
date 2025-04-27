@@ -1,46 +1,52 @@
+
 from flask import Flask, request, jsonify
 import requests
-
-# Importamos las funciones de validación
+import os
+from functools import wraps
+from utils import chunk_list
 from validators import (
+    register_error_handlers, 
+    ValidationError,
+    
     validate_binarios,
     validate_heart_rate,
     validate_posicion,
     validate_saturacion_oxigeno,
-    validate_temperatura
+    validate_temperatura,
 )
 
-
 app = Flask(__name__)
-CRATE_URL = "http://cratedb:4200/_sql"  # Nombre del servicio en Docker
 
-# def generate_data():
-#     """Genera datos simulados de sensores IoT."""
-#     return {
-#         "id": str(uuid.uuid4()), 
-#         "sensor_id": f"sensor-{random.randint(1, 10)}",
-#         "temperature": round(random.uniform(18.0, 30.0), 2),
-#         "humidity": round(random.uniform(30.0, 70.0), 2),
-#         "co2": round(random.uniform(300.0, 800.0), 2),
-#     }
+# Variables de entorno
+CRATE_USER = os.getenv("CRATE_USER")
+CRATE_PASSWORD = os.getenv("CRATE_PASSWORD")
+CRATE_HOST = os.getenv("CRATE_HOST")
+API_KEY = os.getenv("API_KEY")
+MAX_BULK_SIZE = 500  
 
-class ValidationError(Exception):
-    pass
+# Verificación de variables obligatorias
+if not CRATE_USER or not CRATE_PASSWORD:
+    raise Exception("Variables CRATE_USER o CRATE_PASSWORD no definidas")
 
-# Handlers globales de errores
-@app.errorhandler(ValidationError)
-def handle_validation_error(e):
-    return jsonify({"success": False, "error": {"type": "ValidationError", "message": str(e)}}), 400
+if not API_KEY:
+    raise Exception("Variable API_KEY no definida")
 
-@app.errorhandler(404)
-def handle_404_error(e):
-    return jsonify({"success": False, "error": {"type": "NotFound", "message": "Recurso no encontrado."}}), 404
+CRATE_URL = f"http://{CRATE_USER}:{CRATE_PASSWORD}@{CRATE_HOST}/_sql"
 
-@app.errorhandler(500)
-def handle_500_error(e):
-    return jsonify({"success": False, "error": {"type": "InternalServerError", "message": "Error interno del servidor."}}), 500
+register_error_handlers(app)
+
+# Decorador para requerir API Key
+def require_api_key(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        key = request.headers.get('X-API-KEY')
+        if not key or key != API_KEY:
+            return jsonify({"success": False, "error": {"type": "Unauthorized", "message": "API Key inválida o faltante"}}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/data', methods=['POST'])
+@require_api_key
 def insert_data():
     data_type = request.args.get('type')
     if not data_type:
@@ -82,13 +88,15 @@ def insert_data():
             raise ValidationError("Tipo de datos no soportado.")
 
     if bulk_args:
-        response = requests.post(CRATE_URL, json={"stmt": query, "bulk_args": bulk_args})
-        if response.status_code != 200:
-            raise Exception("Error al insertar datos en la base de datos.")
+        for batch in chunk_list(bulk_args, MAX_BULK_SIZE):
+            response = requests.post(CRATE_URL, json={"stmt": query, "bulk_args": batch})
+            if response.status_code != 200:
+                raise Exception("Error al insertar batch de datos.")
 
     return jsonify({"success": True, "message": "Datos insertados", "data": data_list}), 200
 
 @app.route('/data/all', methods=['GET'])
+@require_api_key
 def get_all_data():
     """Recupera todos los datos de la base de datos."""
     query = {"stmt": "SELECT * FROM binarios_data UNION ALL SELECT * FROM heart_rate_data UNION ALL SELECT * FROM posicion_data UNION ALL SELECT * FROM saturacion_oxigeno_data UNION ALL SELECT * FROM temperatura_data"}
@@ -102,5 +110,12 @@ def get_all_data():
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
 
-# curl -X POST "http://localhost:5000/data?type=temperatura" -H "Content-Type: application/json" -d @data.json
-# curl -X GET "http://localhost:5000/data/all"
+# def generate_data():
+#     """Genera datos simulados de sensores IoT."""
+#     return {
+#         "id": str(uuid.uuid4()), 
+#         "sensor_id": f"sensor-{random.randint(1, 10)}",
+#         "temperature": round(random.uniform(18.0, 30.0), 2),
+#         "humidity": round(random.uniform(30.0, 70.0), 2),
+#         "co2": round(random.uniform(300.0, 800.0), 2),
+#     }

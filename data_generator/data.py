@@ -2,8 +2,14 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import requests
 import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_URL = "http://localhost:5000/data"
+
+API_KEY = os.getenv("API_KEY")
 
 class DataSenderApp:
     def __init__(self, root):
@@ -52,7 +58,12 @@ class DataSenderApp:
             with open(file_path, 'r') as f:
                 data = json.load(f)
 
-            response = requests.post(f"{API_URL}?type={data_type}", json=data)
+            headers = {
+                "Content-Type": "application/json",
+                "X-API-KEY": API_KEY
+            }
+
+            response = requests.post(f"{API_URL}?type={data_type}", headers=headers, json=data)
             if response.status_code == 200:
                 message = f"Datos insertados correctamente: {response.json()['message']}"
             else:
@@ -60,6 +71,7 @@ class DataSenderApp:
             self.result_label.config(text=f"Resultado: {message}")
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
 
 if __name__ == "__main__":
     root = tk.Tk()

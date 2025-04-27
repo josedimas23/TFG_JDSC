@@ -3,23 +3,22 @@ version: '3.3'
 services:
   cratedb:
     image: crate:latest
-    ports:
-      - "4200:4200"
-      - "5432:5432"
     environment:
       - CRATE_HEAP_SIZE=${CRATE_HEAP_SIZE}
-      - CRATE_NETWORK_HOST=${CRATE_NETWORK_HOST}
-      - CRATE_PG_HOST=${CRATE_PG_HOST}
+      - CRATE_NETWORK_HOST=0.0.0.0
     volumes:
       - cratedb_data:/data
     networks:
       - crate-net
+    ports:
+      - "4200:4200"
 
   grafana:
     image: grafana/grafana
     ports:
       - "3000:3000"
     environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
     depends_on:
       - cratedb
@@ -38,6 +37,8 @@ services:
       - crate-net
     volumes:
       - ../API:/app
+    env_file:
+      - .env
 
   data-generator:
     build: ../data_generator
@@ -48,7 +49,9 @@ services:
     networks:
       - crate-net
     volumes:
-      - ../tkinter_app:/app    
+      - ../data_generator:/app
+    env_file:
+      - ../BD/.env
 
 volumes:
   cratedb_data: {}
