@@ -1,7 +1,15 @@
 from flask import Flask, request, jsonify
 import requests
-import uuid
-import random
+
+# Importamos las funciones de validación
+from validators import (
+    validate_binarios,
+    validate_heart_rate,
+    validate_posicion,
+    validate_saturacion_oxigeno,
+    validate_temperatura
+)
+
 
 app = Flask(__name__)
 CRATE_URL = "http://cratedb:4200/_sql"  # Nombre del servicio en Docker
@@ -18,47 +26,55 @@ CRATE_URL = "http://cratedb:4200/_sql"  # Nombre del servicio en Docker
 
 @app.route('/data', methods=['POST'])
 def insert_data():
-    
     data_type = request.args.get('type')
     if not data_type:
         return jsonify({"error": "Tipo de datos no especificado"}), 400
 
-    if request.is_json:
-        data_list = request.get_json()
-        if not isinstance(data_list, list):
-            return jsonify({"error": "Formato de datos incorrecto"}), 400
-
-        bulk_args = []
-        for data in data_list:
-            try:
-                if data_type == "binarios":
-                    bulk_args.append([data["time"], data["closet_2"]])
-                    query = "INSERT INTO binarios_data (time, closet_2) VALUES (?, ?)"
-                elif data_type == "heart_rate":
-                    bulk_args.append([data["time"], data["heart_rate"]])
-                    query = "INSERT INTO heart_rate_data (time, heart_rate) VALUES (?, ?)"
-                elif data_type == "posicion":
-                    bulk_args.append([data["time"], data["x1"], data["y1"], data["x2"], data["y2"], data["certainty"]])
-                    query = "INSERT INTO posicion_data (time, x1, y1, x2, y2, certainty) VALUES (?, ?, ?, ?, ?, ?)"
-                elif data_type == "saturacion_oxigeno":
-                    bulk_args.append([data["time"], data["oxygen_saturation"]])
-                    query = "INSERT INTO saturacion_oxigeno_data (time, oxygen_saturation) VALUES (?, ?)"
-                elif data_type == "temperatura":
-                    bulk_args.append([data["time"], data["temperature"]])
-                    query = "INSERT INTO temperatura_data (time, temperature) VALUES (?, ?)"
-                else:
-                    return jsonify({"error": "Tipo de datos no soportado"}), 400
-            except KeyError as e:
-                return jsonify({"error": f"Campo faltante: {str(e)}"}), 400
-
-        if bulk_args:
-            response = requests.post(CRATE_URL, json={"stmt": query, "bulk_args": bulk_args})
-            if response.status_code != 200:
-                return jsonify({"error": "Error al insertar", "details": response.text}), 500
-
-        return jsonify({"message": "Datos insertados", "data": data_list}), 200
-    else:
+    if not request.is_json:
         return jsonify({"error": "Formato de datos incorrecto"}), 400
+
+    data_list = request.get_json()
+    if not isinstance(data_list, list):
+        return jsonify({"error": "Formato de datos incorrecto: se esperaba una lista"}), 400
+
+    bulk_args = []
+    query = ""
+
+    for data in data_list:
+        try:
+            if data_type == "binarios":
+                validate_binarios(data)
+                bulk_args.append([data["TIME"], data["closet_2"]])
+                query = "INSERT INTO binarios_data (TIME, closet_2) VALUES (?, ?)"
+            elif data_type == "heart_rate":
+                validate_heart_rate(data)
+                bulk_args.append([data["TIME"], float(data["heart_rate"])])
+                query = "INSERT INTO heart_rate_data (TIME, heart_rate) VALUES (?, ?)"
+            elif data_type == "posicion":
+                validate_posicion(data)
+                bulk_args.append([data["TIME"], data["x1"], data["y1"], data["x2"], data["y2"], data["certainty"]])
+                query = "INSERT INTO posicion_data (TIME, x1, y1, x2, y2, certainty) VALUES (?, ?, ?, ?, ?, ?)"
+            elif data_type == "saturacion_oxigeno":
+                validate_saturacion_oxigeno(data)
+                bulk_args.append([data["TIME"], data["oxygen_saturation"]])
+                query = "INSERT INTO saturacion_oxigeno_data (TIME, oxygen_saturation) VALUES (?, ?)"
+            elif data_type == "temperatura":
+                validate_temperatura(data)
+                bulk_args.append([data["TIME"], data["temperature"]])
+                query = "INSERT INTO temperatura_data (TIME, temperature) VALUES (?, ?)"
+            else:
+                return jsonify({"error": "Tipo de datos no soportado"}), 400
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except KeyError as e:
+            return jsonify({"error": f"Campo faltante: {str(e)}"}), 400
+
+    if bulk_args:
+        response = requests.post(CRATE_URL, json={"stmt": query, "bulk_args": bulk_args})
+        if response.status_code != 200:
+            return jsonify({"error": "Error al insertar", "details": response.text}), 500
+
+    return jsonify({"message": "Datos insertados", "data": data_list}), 200
 
 @app.route('/data/all', methods=['GET'])
 def get_all_data():
