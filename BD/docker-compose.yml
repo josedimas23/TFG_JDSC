@@ -5,53 +5,65 @@ services:
     image: crate:latest
     environment:
       - CRATE_HEAP_SIZE=${CRATE_HEAP_SIZE}
-      - CRATE_NETWORK_HOST=0.0.0.0
+      - CRATE_NETWORK_HOST=${CRATE_NETWORK_HOST}
+      - CRATE_PG_HOST=${CRATE_PG_HOST}
     volumes:
       - cratedb_data:/data
     networks:
       - crate-net
-    ports:
-      - "4200:4200"
+    expose:
+      - "4200"  # Solo accesible desde la red interna
 
   grafana:
     image: grafana/grafana
-    ports:
-      - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-    depends_on:
-      - cratedb
-    networks:
-      - crate-net
+      - GF_SERVER_ROOT_URL=${URL_GRAFANA}
+
     volumes:
       - grafana-data:/var/lib/grafana
-
-  flask-api:
-    build: ../API 
-    ports:
-      - "5000:5000"
-    depends_on:
-      - cratedb
     networks:
       - crate-net
+    expose:
+      - "3000"
+
+  flask-api:
+    build: ../API
+    depends_on:
+      - cratedb
     volumes:
       - ../API:/app
     env_file:
-      - .env
+      - ../BD/.env
+    networks:
+      - crate-net
+    expose:
+      - "5000"
 
   data-generator:
     build: ../data_generator
-    environment:
-      - DISPLAY=host.docker.internal:0.0  # Para habilitar la interfaz gráfica
     depends_on:
       - flask-api
-    networks:
-      - crate-net
     volumes:
       - ../data_generator:/app
     env_file:
       - ../BD/.env
+    networks:
+      - crate-net
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - cratedb
+      - grafana
+      - flask-api
+    networks:
+      - crate-net
 
 volumes:
   cratedb_data: {}

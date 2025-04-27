@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-API_URL = "http://localhost:5000/data"
+API_URL = "http://localhost:8080/api"
+
 
 API_KEY = os.getenv("API_KEY")
 
