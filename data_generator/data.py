@@ -7,10 +7,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-API_URL = "http://localhost:8080/api"
+API_KEY = "123456j"
+API_URL = "http://localhost:8080/api/data"
 
-
-API_KEY = os.getenv("API_KEY")
 
 class DataSenderApp:
     def __init__(self, root):
@@ -54,7 +53,7 @@ class DataSenderApp:
     def send_data(self):
         data_type = self.data_type.get()
         file_path = self.file_path.get()
-
+        print("API_KEY usada:", API_KEY)
         try:
             with open(file_path, 'r') as f:
                 data = json.load(f)

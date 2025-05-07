@@ -12,7 +12,7 @@ services:
     networks:
       - crate-net
     expose:
-      - "4200"  # Solo accesible desde la red interna
+      - "4200" 
 
   grafana:
     image: grafana/grafana

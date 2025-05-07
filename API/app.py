@@ -1,13 +1,13 @@
-
 from flask import Flask, request, jsonify
 import requests
+from dotenv import load_dotenv
 import os
 from functools import wraps
+from datetime import datetime, timedelta
 from utils import chunk_list
 from validators import (
     register_error_handlers, 
     ValidationError,
-    
     validate_binarios,
     validate_heart_rate,
     validate_posicion,
@@ -15,14 +15,16 @@ from validators import (
     validate_temperatura,
 )
 
+load_dotenv()
+
 app = Flask(__name__)
 
 # Variables de entorno
 CRATE_USER = os.getenv("CRATE_USER")
 CRATE_PASSWORD = os.getenv("CRATE_PASSWORD")
 CRATE_HOST = os.getenv("CRATE_HOST")
-API_KEY = os.getenv("API_KEY")
-MAX_BULK_SIZE = 500  
+API_KEY = "123456j"
+MAX_BULK_SIZE = 500
 
 # Verificación de variables obligatorias
 if not CRATE_USER or not CRATE_PASSWORD:
@@ -55,42 +57,92 @@ def insert_data():
     if not request.is_json:
         raise ValidationError("Formato de datos incorrecto: no es JSON.")
 
-    data_list = request.get_json()
-    if not isinstance(data_list, list):
-        raise ValidationError("Formato de datos incorrecto: se esperaba una lista.")
+    payload = request.get_json()
+
+    # Soporte para formato alternativo JSON en heart_rate
+    if data_type == "heart_rate" and isinstance(payload, dict) and "data" in payload:
+        base_time = datetime.strptime("2025-02-01 00:00:01", "%Y-%m-%d %H:%M:%S")
+        data_list = []
+        for i, row in enumerate(payload["data"]):
+            timestamp = base_time + timedelta(seconds=i)
+            data_list.append({
+                "TIME": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                "heart_rate": row[0]
+            })
+    elif isinstance(payload, list):
+        data_list = payload
+    else:
+        raise ValidationError("Formato de datos incorrecto: se esperaba lista o dict con 'data'.")
 
     bulk_args = []
     query = ""
 
     for data in data_list:
-       
         if data_type == "binarios":
             validate_binarios(data)
-            bulk_args.append([data["TIME"], data["closet_2"]])
-            query = "INSERT INTO binarios_data (TIME, closet_2) VALUES (?, ?)"
+            bulk_args.append([
+                data["TIME"],
+                data["closet_2"],
+                data["closet_3"],
+                data["closet_4"],
+                data["dishes_9"],
+                data["fridge_13"],
+                data["hum_shower_25"],
+                data["micro_5"],
+                data["pans_8"],
+                data["pc_1_current_consumption"],
+                data["shower_24_apertura"],
+                data["shower_31"],
+                data["sink_21"],
+                data["tap_22"],
+                data["tv_30_current_consumption"],
+                data["wc_17"]
+            ])
+            query = """
+                INSERT INTO binarios_data (
+                    time, closet_2, closet_3, closet_4, dishes_9, fridge_13,
+                    hum_shower_25, micro_5, pans_8, pc_1_current_consumption,
+                    shower_24_apertura, shower_31, sink_21, tap_22,
+                    tv_30_current_consumption, wc_17
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+
         elif data_type == "heart_rate":
             validate_heart_rate(data)
             bulk_args.append([data["TIME"], float(data["heart_rate"])])
-            query = "INSERT INTO heart_rate_data (TIME, heart_rate) VALUES (?, ?)"
+            query = "INSERT INTO heart_rate_data (time, heart_rate) VALUES (?, ?)"
+
         elif data_type == "posicion":
             validate_posicion(data)
-            bulk_args.append([data["TIME"], data["x1"], data["y1"], data["x2"], data["y2"], data["certainty"]])
-            query = "INSERT INTO posicion_data (TIME, x1, y1, x2, y2, certainty) VALUES (?, ?, ?, ?, ?, ?)"
+            bulk_args.append([
+                data["TIME"],
+                data["X1"],
+                data["Y1"],
+                data["X2"],
+                data["Y2"],
+                data["certainty"]
+            ])
+            query = "INSERT INTO posicion_data (time, x1, y1, x2, y2, certainty) VALUES (?, ?, ?, ?, ?, ?)"
+
         elif data_type == "saturacion_oxigeno":
             validate_saturacion_oxigeno(data)
-            bulk_args.append([data["TIME"], data["oxygen_saturation"]])
-            query = "INSERT INTO saturacion_oxigeno_data (TIME, oxygen_saturation) VALUES (?, ?)"
+            bulk_args.append([data["TIME"], float(data["oxygen_saturation"])])
+            query = "INSERT INTO saturacion_oxigeno_data (time, oxygen_saturation) VALUES (?, ?)"
+
         elif data_type == "temperatura":
             validate_temperatura(data)
-            bulk_args.append([data["TIME"], data["temperature"]])
-            query = "INSERT INTO temperatura_data (TIME, temperature) VALUES (?, ?)"
+            bulk_args.append([data["TIME"], float(data["temperature"])])
+            query = "INSERT INTO temperatura_data (time, temperature) VALUES (?, ?)"
+
         else:
             raise ValidationError("Tipo de datos no soportado.")
 
+    # Enviar a CrateDB en lotes
     if bulk_args:
         for batch in chunk_list(bulk_args, MAX_BULK_SIZE):
             response = requests.post(CRATE_URL, json={"stmt": query, "bulk_args": batch})
             if response.status_code != 200:
+                print("Error Crate:", response.text)
                 raise Exception("Error al insertar batch de datos.")
 
     return jsonify({"success": True, "message": "Datos insertados", "data": data_list}), 200
@@ -99,9 +151,21 @@ def insert_data():
 @require_api_key
 def get_all_data():
     """Recupera todos los datos de la base de datos."""
-    query = {"stmt": "SELECT * FROM binarios_data UNION ALL SELECT * FROM heart_rate_data UNION ALL SELECT * FROM posicion_data UNION ALL SELECT * FROM saturacion_oxigeno_data UNION ALL SELECT * FROM temperatura_data"}
+    query = {
+        "stmt": """
+            SELECT * FROM binarios_data
+            UNION ALL
+            SELECT * FROM heart_rate_data
+            UNION ALL
+            SELECT * FROM posicion_data
+            UNION ALL
+            SELECT * FROM saturacion_oxigeno_data
+            UNION ALL
+            SELECT * FROM temperatura_data
+        """
+    }
     response = requests.post(CRATE_URL, json=query)
-    
+
     if response.status_code == 200:
         return jsonify({"success": True, "data": response.json()}), 200
     else:
@@ -109,6 +173,8 @@ def get_all_data():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+
+
 
 # def generate_data():
 #     """Genera datos simulados de sensores IoT."""
