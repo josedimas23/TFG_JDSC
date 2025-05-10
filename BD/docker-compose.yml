@@ -45,8 +45,6 @@ services:
     build: ../data_generator
     depends_on:
       - flask-api
-    volumes:
-      - ../data_generator:/app
     env_file:
       - ../BD/.env
     networks:

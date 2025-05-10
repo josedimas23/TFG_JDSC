@@ -1,79 +1,65 @@
-import tkinter as tk
-from tkinter import filedialog, messagebox
-import requests
-import json
-import os
+import requests, os, random, time
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
-
 API_KEY = "123456j"
-API_URL = "http://localhost:8080/api/data"
+API_URL = os.getenv("API_URL")
 
 
-class DataSenderApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Data Sender App")
-        self.root.geometry("400x250")
+headers = {
+    "Content-Type": "application/json",
+    "X-API-KEY": API_KEY
+}
 
-        # Tipo de datos
-        self.label_type = tk.Label(root, text="Seleccione el tipo de datos:")
-        self.label_type.pack(pady=5)
 
-        self.data_type = tk.StringVar()
-        self.data_type.set("temperatura")
-        self.dropdown = tk.OptionMenu(root, self.data_type, "temperatura", "saturacion_oxigeno", "posicion", "heart_rate", "binarios")
-        self.dropdown.pack(pady=5)
+def generar_dato():
+    tipos = ['temperatura', 'saturacion_oxigeno', 'humedad', 'heart_rate', 'posicion', 'binarios']
+    tipo = random.choice(tipos)
 
-        # Archivo JSON
-        self.label_file = tk.Label(root, text="Seleccione el archivo JSON:")
-        self.label_file.pack(pady=5)
+    timestamp = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
 
-        self.file_path = tk.Entry(root, width=40)
-        self.file_path.pack(pady=5)
+    data = {
+        "id_casa": f"casa_{random.randint(1,5):03d}",
+        "tipo_dato": tipo,
+        "id_sensor": f"{tipo}_sensor_{random.randint(1,5)}",
+        "valor": {},
+        "time": timestamp
+    }
 
-        self.browse_button = tk.Button(root, text="Examinar", command=self.browse_file)
-        self.browse_button.pack(pady=5)
+    if tipo == "temperatura":
+        data["valor"] = {"temperature": round(random.uniform(-10,50),2)}
+    elif tipo == "saturacion_oxigeno":
+        data["valor"] = {"oxygen_saturation": round(random.uniform(80,100),2)}
+    elif tipo == "humedad":
+        data["valor"] = {"humidity": round(random.uniform(0,100),2)}
+    elif tipo == "heart_rate":
+        data["valor"] = {"heart_rate": random.randint(40,180)}
+    elif tipo == "posicion":
+        data["valor"] = {
+            "x1": round(random.uniform(0,100),2),
+            "y1": round(random.uniform(0,100),2),
+            "x2": round(random.uniform(0,100),2),
+            "y2": round(random.uniform(0,100),2),
+            "certainty": round(random.uniform(0,1),2)
+        }
+    elif tipo == "binarios":
+        data["valor"] = {f"sensor_{i}": random.randint(0,1) for i in range(1, 10)}
 
-        # Botón para enviar
-        self.send_button = tk.Button(root, text="Enviar Datos", command=self.send_data)
-        self.send_button.pack(pady=10)
+    return [data]
 
-        # Resultado
-        self.result_label = tk.Label(root, text="Resultado: ")
-        self.result_label.pack(pady=5)
-
-    def browse_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
-        if file_path:
-            self.file_path.delete(0, tk.END)
-            self.file_path.insert(0, file_path)
-
-    def send_data(self):
-        data_type = self.data_type.get()
-        file_path = self.file_path.get()
-        print("API_KEY usada:", API_KEY)
-        try:
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-
-            headers = {
-                "Content-Type": "application/json",
-                "X-API-KEY": API_KEY
-            }
-
-            response = requests.post(f"{API_URL}?type={data_type}", headers=headers, json=data)
-            if response.status_code == 200:
-                message = f"Datos insertados correctamente: {response.json()['message']}"
-            else:
-                message = f"Error al insertar datos: {response.json().get('error', 'Error desconocido')}"
-            self.result_label.config(text=f"Resultado: {message}")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-
+def enviar_datos():
+    dato = generar_dato()
+    try:
+        response = requests.post(API_URL, headers=headers, json=dato)
+        if response.status_code == 200:
+            print(f"Dato insertado correctamente: {dato}")
+        else:
+            print(f"Error en la inserción: {response.text}")
+    except Exception as e:
+        print(f"Error de conexión con API: {e}")
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = DataSenderApp(root)
-    root.mainloop()
+    while True:
+        enviar_datos()
+        time.sleep(3)  # Inserta datos cada 3 segundos

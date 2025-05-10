@@ -1,7 +1,14 @@
 from flask import jsonify
+import requests, os
+from dotenv import load_dotenv
+
+load_dotenv()
+CRATE_USER = os.getenv("CRATE_USER")
+CRATE_PASSWORD = os.getenv("CRATE_PASSWORD")
+CRATE_HOST = os.getenv("CRATE_HOST")
+CRATE_URL = f"http://{CRATE_USER}:{CRATE_PASSWORD}@{CRATE_HOST}/_sql"
 
 class ValidationError(Exception):
-    """Error personalizado para validaciones."""
     pass
 
 def register_error_handlers(app):
@@ -17,72 +24,61 @@ def register_error_handlers(app):
     def handle_500_error(e):
         return jsonify({"success": False, "error": {"type": "InternalServerError", "message": "Error interno del servidor."}}), 500
 
+def obtener_rangos(tipo_dato):
+    query = {
+        "stmt": "SELECT min_val, max_val FROM iot_ranges WHERE tipo_dato = ?",
+        "args": [tipo_dato]
+    }
+    response = requests.post(CRATE_URL, json=query)
+    if response.status_code == 200 and response.json()["rows"]:
+        min_val, max_val = response.json()["rows"][0]
+        return min_val, max_val
+    else:
+        raise ValidationError(f"Rangos no definidos para '{tipo_dato}'.")
 
-def validate_binarios(data):
-    if "TIME" not in data:
-        raise ValueError("Falta el campo 'TIME'.")
-    if not isinstance(data["TIME"], str):
-        raise ValueError("El campo 'TIME' debe ser una cadena.")
-
-    boolean_fields = [
-        "closet_2", "closet_3", "closet_4", "dishes_9", "fridge_13",
-        "hum_shower_25", "micro_5", "pans_8", "shower_24_apertura",
-        "shower_31", "sink_21", "tap_22", "wc_17"
-    ]
-    numeric_fields = [
-        "pc_1_current_consumption", "tv_30_current_consumption"
-    ]
-
-    for field in boolean_fields + numeric_fields:
-        if field not in data:
-            raise ValueError(f"Falta el campo '{field}'.")
-
-    for field in boolean_fields:
-        if not isinstance(data[field], (bool, int)):
-            raise ValueError(f"El campo '{field}' debe ser booleano o entero.")
-
-    for field in numeric_fields:
-        if not isinstance(data[field], (int, float)):
-            raise ValueError(f"El campo '{field}' debe ser numérico.")
-    
-def validate_heart_rate(data):
-    print("VALIDADOR HEART_RATE ACTUAL USADO") 
-    if "TIME" not in data or "heart_rate" not in data:
-        raise ValueError("Faltan campos 'TIME' o 'heart_rate'.")
-    if not isinstance(data["TIME"], str):
-        raise ValueError("El campo 'TIME' debe ser una cadena.")
-    try:
-        float(data["heart_rate"])
-    except (ValueError, TypeError):
-        raise ValueError("El campo 'heart_rate' debe ser convertible a numérico.")
-
-def validate_posicion(data):
-    required_fields = ["TIME", "X1", "Y1", "X2", "Y2", "certainty"]
+def validate_data_payload(data):
+    required_fields = ["id_casa", "tipo_dato", "id_sensor", "valor", "time"]
     for field in required_fields:
         if field not in data:
-            raise ValueError(f"Falta el campo '{field}'.")
-        if field != "TIME" and not isinstance(data[field], (int, float)):
-            raise ValueError(f"El campo '{field}' debe ser numérico.")
-    if not isinstance(data["TIME"], str):
-        raise ValueError("El campo 'TIME' debe ser una cadena.")
+            raise ValidationError(f"Falta el campo '{field}'.")
 
-def validate_saturacion_oxigeno(data):
-    if "TIME" not in data or "oxygen_saturation" not in data:
-        raise ValueError("Faltan campos 'TIME' o 'oxygen_saturation'.")
-    if not isinstance(data["TIME"], str):
-        raise ValueError("El campo 'TIME' debe ser una cadena.")
-    try:
-        data["oxygen_saturation"] = float(data["oxygen_saturation"])
-    except ValueError:
-        raise ValueError("El campo 'oxygen_saturation' debe ser numérico (aunque esté como string).")
+    tipo_dato = data["tipo_dato"]
+    valor = data["valor"]
 
-def validate_temperatura(data):
-    if "TIME" not in data or "temperature" not in data:
-        raise ValueError("Faltan campos 'TIME' o 'temperature'.")
-    if not isinstance(data["TIME"], str):
-        raise ValueError("El campo 'TIME' debe ser una cadena.")
-    try:
-        data["temperature"] = float(data["temperature"])
-    except ValueError:
-        raise ValueError("El campo 'temperature' debe ser numérico (aunque esté como string).")
+    if tipo_dato in ["temperatura", "saturacion_oxigeno", "humedad", "heart_rate"]:
+        if len(valor) != 1:
+            raise ValidationError(f"{tipo_dato} debe tener exactamente un campo.")
+        
+        campo, valor_num = next(iter(valor.items()))
+        if not isinstance(valor_num, (int, float)):
+            raise ValidationError(f"'{campo}' debe ser numérico.")
 
+        min_val, max_val = obtener_rangos(tipo_dato)
+        if not (min_val <= valor_num <= max_val):
+            raise ValidationError(f"'{campo}' ({valor_num}) fuera de rango [{min_val}, {max_val}].")
+
+    elif tipo_dato == "posicion":
+        for coord in ["x1", "y1", "x2", "y2", "certainty"]:
+            if coord not in valor or not isinstance(valor[coord], (int, float)):
+                raise ValidationError(f"'{coord}' incorrecto o faltante.")
+            tipo_rango = "certainty" if coord == "certainty" else f"posicion_{coord[0]}"
+            min_val, max_val = obtener_rangos(tipo_rango)
+            if not (min_val <= valor[coord] <= max_val):
+                raise ValidationError(f"'{coord}' ({valor[coord]}) fuera de rango [{min_val}, {max_val}].")
+
+    elif tipo_dato == "binarios":
+        for campo, val in valor.items():
+            if val not in [0, 1]:
+                raise ValidationError(f"'{campo}' debe ser 0 o 1.")
+
+    return data
+
+# INSERT INTO iot_ranges (tipo_dato, min_val, max_val, color) VALUES
+#   ('temperatura', -10.0, 50.0, 'red'),
+#   ('saturacion_oxigeno', 80.0, 100.0, 'cyan'),
+#   ('humedad', 0.0, 100.0, 'blue'),
+#   ('heart_rate', 40.0, 180.0, 'orange'),
+#   ('posicion_x', 0.0, 100.0, 'green'),
+#   ('posicion_y', 0.0, 100.0, 'green'),
+#   ('certainty', 0.0, 1.0, 'gray'),
+#   ('binarios', 0, 1, 'purple');
