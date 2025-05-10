@@ -43,8 +43,11 @@ def generar_dato():
             "y2": round(random.uniform(0,100),2),
             "certainty": round(random.uniform(0,1),2)
         }
-    elif tipo == "binarios":
+    if tipo == "binarios":
+        data["id_sensor"] = "multiple"
         data["valor"] = {f"sensor_{i}": random.randint(0,1) for i in range(1, 10)}
+    else:
+        data["id_sensor"] = f"{tipo}_sensor_{random.randint(1,5)}"
 
     return [data]
 
