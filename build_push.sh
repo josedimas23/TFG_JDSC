@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Configuración
-REGISTRY="registry.local:5000"
+REGISTRY="registry.local:5000"   # no cambies: el clúster tfg ya está configurado con este mirror
+CLUSTER_NAME="tfg"         # nombre del clúster kind
 TAG="1.0"
 
 # Build imágenes ------------------------------------------------
@@ -20,14 +21,14 @@ if curl -s http://${REGISTRY}/v2/ >/dev/null 2>&1; then
   docker push ${REGISTRY}/flask-api:${TAG}
   docker push ${REGISTRY}/data-generator:${TAG}
 else
-  echo "[!] Registry no accesible aún → solo build local"
+  echo "[!] Registry no accesible aún → asegúrate de que /etc/hosts contiene '127.0.0.1 registry.local' y el contenedor kind-registry está activo" && exit 1
 fi
 
-# Si existe clúster kind, cargamos imágenes dentro
-if command -v kind >/dev/null 2>&1 && kind get clusters >/dev/null 2>&1; then
-  echo "[+] Inyectando imágenes en kind…"
-  kind load docker-image ${REGISTRY}/flask-api:${TAG}
-  kind load docker-image ${REGISTRY}/data-generator:${TAG}
+# Si existe clúster kind con el nombre dado, cargamos imágenes dentro
+if command -v kind >/dev/null 2>&1 && kind get clusters | grep -q "^${CLUSTER_NAME}$"; then
+  echo "[+] Inyectando imágenes en kind (${CLUSTER_NAME})…"
+  kind load docker-image --name ${CLUSTER_NAME} ${REGISTRY}/flask-api:${TAG}
+  kind load docker-image --name ${CLUSTER_NAME} ${REGISTRY}/data-generator:${TAG}
 fi
 
 echo "[✔] Imágenes listas"
