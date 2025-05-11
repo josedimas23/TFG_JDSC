@@ -1,14 +1,29 @@
-FROM python:3.11-slim
+# syntax=docker/dockerfile:1
 
+#### Stage 1 – builder & tests 
+FROM python:3.11-slim AS builder
 WORKDIR /app
 
-COPY requirements.txt .
-
+# Dependencias Python
+COPY API/requirements.txt ./
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copiamos código y (opcional) tests
+COPY API/ ./
+# Ejecuta pytest si existe carpeta tests (no detiene build si no la hay)
+RUN if [ -d "tests" ]; then python -m pytest -q; else echo "No tests"; fi
+
+#### Stage 2 – runtime ####################################
+FROM python:3.11-slim
+WORKDIR /app
+
+# Copiamos todo el entorno Python del builder
+COPY --from=builder /usr/local /usr/local
+
+# Copiamos ÚNICAMENTE el código fuente de la API
+COPY API/ ./
 
 EXPOSE 5000
-
+ENV PYTHONUNBUFFERED=1
 CMD ["python", "app.py"]

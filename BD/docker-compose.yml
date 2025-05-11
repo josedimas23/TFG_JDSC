@@ -3,6 +3,8 @@ version: '3.3'
 services:
   cratedb:
     image: crate:latest
+    env_file:
+      - ../.env.tfg
     environment:
       - CRATE_HEAP_SIZE=${CRATE_HEAP_SIZE}
       - CRATE_NETWORK_HOST=${CRATE_NETWORK_HOST}
@@ -16,6 +18,8 @@ services:
 
   grafana:
     image: grafana/grafana
+    env_file:
+      - ../.env.tfg
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
@@ -35,7 +39,7 @@ services:
     volumes:
       - ../API:/app
     env_file:
-      - ../BD/.env
+      - ../.env.tfg
     networks:
       - crate-net
     expose:
@@ -46,7 +50,7 @@ services:
     depends_on:
       - flask-api
     env_file:
-      - ../BD/.env
+      - ../.env.tfg
     networks:
       - crate-net
 
