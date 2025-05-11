@@ -1,12 +1,16 @@
+```bash
 # Validación rápida de ETAPA 1
 
-```bash
-# 1. Construir e inyectar imágenes\ ./build_push.sh
+# 1. Construir e inyectar imágenes\ 
+./build_push.sh
 
 # 2. Arrancar stack con Compose (opcional)
 docker compose --env-file .env.tfg up -d
 
-# 3. Probar salud del API\ ncurl -H "X-API-KEY: 123456j" http://localhost:8080/api/health
+# 3. Probar salud del API\ 
+curl -H "X-API-KEY: 123456j" http://localhost:8080/api/health
+
+
 
 # Validación rápida de ETAPA 2
 
@@ -24,3 +28,29 @@ curl http://registry.local:5000/v2/_catalog
 ./build_push.sh
 curl http://registry.local:5000/v2/_catalog
 # → { "repositories": ["flask-api","data-generator"] }
+
+
+
+# Validación rápida de ETAPA 3
+
+# 1. Instalar metrics-server e ingress
+kubectl apply -f metrics-server.yaml
+kubectl apply -f ingress-nginx.yaml
+
+# 2. Esperar a que los pods estén Ready
+kubectl get pods -n metrics-server -w
+kubectl get pods -n ingress-nginx -w
+kubectl get svc ingress-nginx-controller -n ingress-nginx   # 80:30550 / 443:31080
+
+# 3. Verificar métricas
+kubectl top nodes
+
+# 4. Probar StorageClass
+kubectl apply -f pvc-test.yaml
+kubectl get pvc pvc-test
+kubectl exec pvc-smoke-test -- cat /data/ok   # -> it-works
+
+
+
+# Validación rápida de ETAPA 4
+
