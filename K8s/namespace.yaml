@@ -1,0 +1,4 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tfg-iotkubectl -n ingress-nginx delete pod -l app.kubernetes.io/component=controller

@@ -3,13 +3,82 @@ kind: Namespace
 metadata:
   name: ingress-nginx
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ingress-nginx
+  namespace: ingress-nginx
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ingress-nginx
+rules:
+  - apiGroups:
+      - ""
+      - networking.k8s.io
+      - discovery.k8s.io
+      - coordination.k8s.io
+    resources:
+      - configmaps
+      - endpoints
+      - events
+      - ingresses
+      - ingresses/status
+      - nodes
+      - pods
+      - secrets
+      - services
+      - namespaces
+      - leases
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+      - update
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ingress-nginx
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ingress-nginx
+subjects:
+  - kind: ServiceAccount
+    name: ingress-nginx
+    namespace: ingress-nginx
+---
+apiVersion: v1
+kind: Service
 metadata:
   name: ingress-nginx-controller
   namespace: ingress-nginx
   labels:
     app.kubernetes.io/name: ingress-nginx
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080
+    - name: https
+      port: 443
+      targetPort: https
+      nodePort: 30443
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
 spec:
   replicas: 1
   selector:
@@ -20,40 +89,43 @@ spec:
       labels:
         app.kubernetes.io/name: ingress-nginx
     spec:
+      serviceAccountName: ingress-nginx
       containers:
         - name: controller
-          image: registry.k8s.io/ingress-nginx/controller:v1.10.1
+          image: registry.k8s.io/ingress-nginx/controller:v1.12.2
           args:
-            - --publish-service=$(POD_NAMESPACE)/ingress-nginx-controller
+            - /nginx-ingress-controller
             - --election-id=ingress-controller-leader
             - --controller-class=k8s.io/ingress-nginx
-            - --watch-ingress-without-class=true
-          securityContext:
-            runAsUser: 101
-            allowPrivilegeEscalation: true
+            - --watch-namespace=
           ports:
             - name: http
               containerPort: 80
             - name: https
               containerPort: 443
+          securityContext:
+            allowPrivilegeEscalation: true
+            runAsUser: 101
+            capabilities:
+              drop: [ "ALL" ]
+              add:  [ "NET_BIND_SERVICE" ]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
       nodeSelector:
         kubernetes.io/os: linux
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
 ---
-apiVersion: v1
-kind: Service
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
 metadata:
-  name: ingress-nginx-controller
-  namespace: ingress-nginx
+  name: nginx
 spec:
-  type: NodePort
-  ports:
-    - name: http
-      port: 80
-      targetPort: 80
-      nodePort: 30080
-    - name: https
-      port: 443
-      targetPort: 443
-      nodePort: 30443
-  selector:
-    app.kubernetes.io/name: ingress-nginx
+  controller: k8s.io/ingress-nginx

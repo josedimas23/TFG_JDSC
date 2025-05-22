@@ -53,4 +53,4 @@ kubectl exec pvc-smoke-test -- cat /data/ok   # -> it-works
 
 
 # Validación rápida de ETAPA 4
-
+ETAPA 4 – Despliegue completo de la aplicación IoT, Convertir el clúster “vacío” que ya tiene métricas, ingress y almacenamiento en un sistema IoT funcional y auto-escalable.

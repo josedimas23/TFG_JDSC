@@ -14,7 +14,7 @@ app = Flask(__name__)
 CRATE_USER = os.getenv("CRATE_USER")
 CRATE_PASSWORD = os.getenv("CRATE_PASSWORD")
 CRATE_HOST = os.getenv("CRATE_HOST")
-API_KEY = "123456j"
+API_KEY = os.getenv("API_KEY", "123456j")
 MAX_BULK_SIZE = 500
 
 CRATE_URL = f"http://{CRATE_USER}:{CRATE_PASSWORD}@{CRATE_HOST}/_sql"
@@ -87,6 +87,12 @@ def get_data():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"success": True, "status": "ok"}), 200
+
+# --- Ruta de salud con prefijo /api (necesario para el Ingress) ----
+@app.route('/api/health', methods=['GET'])
+def api_health():
+    return health()
+
 
 
 if __name__ == '__main__':
