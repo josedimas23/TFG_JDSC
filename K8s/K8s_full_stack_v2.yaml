@@ -1,0 +1,298 @@
+# ---------------------------------------------------------------------------
+# Namespace – keeps app resources isolated
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tfg-iot
+---
+# ---------------------------------------------------------------------------
+# CrateDB – stateful backend (with readinessProbe so HPA waits for it)
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cratedb
+  namespace: tfg-iot
+spec:
+  serviceName: cratedb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cratedb
+  template:
+    metadata:
+      labels:
+        app: cratedb
+    spec:
+      containers:
+      - name: cratedb
+        image: crate:latest
+        ports:
+        - containerPort: 4200
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4200
+          initialDelaySeconds: 15
+          periodSeconds: 10
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ReadWriteOnce]
+      resources:
+        requests:
+          storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cratedb
+  namespace: tfg-iot
+spec:
+  selector:
+    app: cratedb
+  ports:
+  - name: http
+    port: 4200
+    targetPort: 4200
+---
+# ---------------------------------------------------------------------------
+# Flask API – stateless, auto‑scaled, with probes + PDB
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-api
+  namespace: tfg-iot
+spec:
+  replicas: 2   # HPA will grow/shrink from here
+  selector:
+    matchLabels:
+      app: flask-api
+  template:
+    metadata:
+      labels:
+        app: flask-api
+    spec:
+      containers:
+      - name: flask-api
+        image: registry.local:5000/flask-api:1.1
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        env:
+        - name: CRATE_USER
+          value: crate
+        - name: CRATE_PASSWORD
+          value: default
+        - name: CRATE_HOST
+          value: cratedb:4200
+        - name: API_KEY
+          value: "123456j"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-api
+  namespace: tfg-iot
+spec:
+  selector:
+    app: flask-api
+  ports:
+  - port: 5000
+    targetPort: 5000
+---
+# PDB → nunca drena todos los pods a la vez
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: flask-api-pdb
+  namespace: tfg-iot
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: flask-api
+---
+# Horizontal Pod Autoscaler v2 (CPU + memory)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: flask-api-hpa
+  namespace: tfg-iot
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: flask-api
+  minReplicas: 2
+  maxReplicas: 8
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 75
+---
+# ---------------------------------------------------------------------------
+# Data generator – produces synthetic load so you can demo HPA
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-generator
+  namespace: tfg-iot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-generator
+  template:
+    metadata:
+      labels:
+        app: data-generator
+    spec:
+      containers:
+      - name: data-generator
+        image: registry.local:5000/data-generator:1.1
+        env:
+        - name: API_URL
+          value: http://flask-api:5000/data
+        - name: GEN_RATE
+          value: "200"
+---
+# ---------------------------------------------------------------------------
+# Grafana – dashboards (served at /)
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: tfg-iot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: admin
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: 123456j
+        - name: GF_SERVER_ROOT_URL
+          value: http://grafana.tfg.local/
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: tfg-iot
+spec:
+  selector:
+    app: grafana
+  ports:
+  - port: 3000
+    targetPort: 3000
+---
+# ---------------------------------------------------------------------------
+# Ingress – three virtual hosts on the same controller
+# ---------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-api
+  namespace: tfg-iot
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: api.tfg.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: flask-api
+            port:
+              number: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-grafana
+  namespace: tfg-iot
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: grafana.tfg.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-cratedb
+  namespace: tfg-iot
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: crate.tfg.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: cratedb
+            port:
+              number: 4200

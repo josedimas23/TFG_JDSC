@@ -8,12 +8,25 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: flask-api
-  minReplicas: 2
-  maxReplicas: 5
+  minReplicas: 3
+  maxReplicas: 8
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
-        type: Utilization
-        averageUtilization: 60
+        type: Utilization        # ← NUEVO formato
+        averageUtilization: 50   # 50 % de 100 m = 50 m
+  behavior:                      # ← BLOQUE NUEVO
+    scaleUp:
+      stabilizationWindowSeconds: 30   # evita escalados ping-pong
+      policies:
+      - type: Percent
+        value: 100          # x2 máx cada minuto
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50           # ÷2 máx cada minuto
+        periodSeconds: 60
