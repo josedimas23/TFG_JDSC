@@ -13,18 +13,11 @@ spec:
       labels:
         app: data-generator
     spec:
-      restartPolicy: Always
       containers:
-        - name: data-generator
-          image: registry.local:5000/data-generator:1.1kubectl apply -f K8s/grafana-deployment.yaml
-          env:
-            - name: API_URL
-              value: "http://flask-api:5000/data"
-            - name: API_KEY
-              value: "123456j"
-            - name: GEN_RATE
-              value: "200"
-          resources:
-            requests:
-              cpu: "30m"
-              memory: "64Mi"
+      - name: data-generator
+        image: registry.local:5000/data-generator:1.1
+        env:
+        - name: API_URL
+          value: http://flask-api:5000/data
+        - name: GEN_RATE
+          value: "200"

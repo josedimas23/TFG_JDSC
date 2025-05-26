@@ -3,9 +3,9 @@ import requests, os
 from dotenv import load_dotenv
 
 load_dotenv()
-CRATE_USER = os.getenv("CRATE_USER")
-CRATE_PASSWORD = os.getenv("CRATE_PASSWORD")
-CRATE_HOST = os.getenv("CRATE_HOST")
+CRATE_USER = os.getenv("CRATE_USER", "crate")
+CRATE_PASSWORD = os.getenv("CRATE_PASSWORD", "default")
+CRATE_HOST = os.getenv("CRATE_HOST", "cratedb:4200")
 CRATE_URL = f"http://{CRATE_USER}:{CRATE_PASSWORD}@{CRATE_HOST}/_sql"
 
 class ValidationError(Exception):

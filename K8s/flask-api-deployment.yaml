@@ -1,22 +1,10 @@
-# Secret con credenciales CrateDB
-apiVersion: v1
-kind: Secret
-metadata:
-  name: crate-credentials
-  namespace: tfg-iot
-type: Opaque
-stringData:
-  CRATE_USER: crate
-  CRATE_PASSWORD: default
----
-# Deployment flask-api
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flask-api
   namespace: tfg-iot
 spec:
-  replicas: 2          # valor inicial; el HPA lo gestionará
+  replicas: 2
   selector:
     matchLabels:
       app: flask-api
@@ -26,19 +14,34 @@ spec:
         app: flask-api
     spec:
       containers:
-        - name: flask-api
-          image: registry.local:5000/flask-api:1.1
-          ports:
-            - containerPort: 5000
-          resources:
-            requests:
-              cpu: "20m"      # antes 50m
-              memory: "64Mi"
-          envFrom:
-            - secretRef:
-                name: crate-credentials
-          env:
-            - name: CRATE_HOST
-              value: "cratedb:4200"
-            - name: API_KEY
-              value: "123456j"
+      - name: flask-api
+        image: registry.local:5000/flask-api:1.1
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+        env:
+        - name: CRATE_USER
+          value: crate
+        - name: CRATE_PASSWORD
+          value: default
+        - name: CRATE_HOST
+          value: cratedb:4200
+        - name: API_KEY
+          value: "123456j"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-api
+  namespace: tfg-iot
+spec:
+  selector:
+    app: flask-api
+  ports:
+  - port: 5000
+    targetPort: 5000

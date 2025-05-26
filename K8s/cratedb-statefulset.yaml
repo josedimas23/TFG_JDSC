@@ -1,25 +1,10 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: cratedb
-  namespace: tfg-iot
-spec:
-  clusterIP: None
-  selector:
-    app: cratedb
-  ports:
-    - name: http
-      port: 4200
-    - name: pg
-      port: 5432
----
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: cratedb
   namespace: tfg-iot
 spec:
-  serviceName: cratedb
+  serviceName: "cratedb"
   replicas: 1
   selector:
     matchLabels:
@@ -30,27 +15,31 @@ spec:
         app: cratedb
     spec:
       containers:
-        - name: cratedb
-          image: crate:5.4.2
-          ports:
-            - containerPort: 4200
-              name: http
-            - containerPort: 5432
-              name: pg
-          env:
-            - name: CRATE_HEAP_SIZE
-              value: "2g"
-            - name: CRATE_NETWORK_HOST
-              value: "0.0.0.0"
-          volumeMounts:
-            - name: data
-              mountPath: /data
+      - name: cratedb
+        image: crate:latest
+        ports:
+        - containerPort: 4200
+        volumeMounts:
+        - name: data
+          mountPath: /data
   volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: standard
-        resources:
-          requests:
-            storage: 2Gi
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cratedb
+  namespace: tfg-iot
+spec:
+  selector:
+    app: cratedb
+  ports:
+  - name: http
+    port: 4200
+    targetPort: 4200

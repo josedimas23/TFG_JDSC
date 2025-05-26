@@ -11,9 +11,9 @@ load_dotenv()
 app = Flask(__name__)
 
 # Variables de entorno
-CRATE_USER = os.getenv("CRATE_USER")
-CRATE_PASSWORD = os.getenv("CRATE_PASSWORD")
-CRATE_HOST = os.getenv("CRATE_HOST")
+CRATE_USER = os.getenv("CRATE_USER", "crate")
+CRATE_PASSWORD = os.getenv("CRATE_PASSWORD", "default")
+CRATE_HOST = os.getenv("CRATE_HOST", "cratedb:4200")
 API_KEY = os.getenv("API_KEY", "123456j")
 MAX_BULK_SIZE = 500
 
@@ -88,11 +88,9 @@ def get_data():
 def health():
     return jsonify({"success": True, "status": "ok"}), 200
 
-# --- Ruta de salud con prefijo /api (necesario para el Ingress) ----
 @app.route('/api/health', methods=['GET'])
 def api_health():
-    return health()
-
+    return jsonify({"success": True, "status": "ok"}), 200
 
 
 if __name__ == '__main__':
