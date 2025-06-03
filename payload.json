@@ -1,0 +1,9 @@
+[
+  {
+    "id_casa": "casa_001",
+    "tipo_dato": "temperatura",
+    "id_sensor": "sensor_1",
+    "valor": { "temperature": 25.1 },
+    "time": "2025-05-29T17:01:00"
+  }
+]

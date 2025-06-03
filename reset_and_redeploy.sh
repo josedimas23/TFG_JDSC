@@ -27,15 +27,20 @@ kubectl label node tfg-control-plane ingress-ready=true --overwrite
 kubectl label node tfg-worker        ingress-ready=true --overwrite
 
 # espera a que el controller esté OK
-kubectl wait -n ingress-nginx --for=condition=ready pod -l app.kubernetes.io/component=controller --timeout=240s
+for i in {1..24}; do
+  kubectl get pods -n ingress-nginx | grep ingress-nginx-controller | grep -q "1/1" && break
+  echo "⏳ Esperando a que ingress-nginx-controller esté listo…"
+  sleep 10
+done || echo "⚠️ Timeout: el controlador aún no está Ready. Revisa con kubectl get pods -n ingress-nginx"
 
-### 5. Desplegar TODO el stack (manifiesto único) ------------------------------
 kubectl apply -f K8s/K8s_full_stack_v2.yaml
 
 ### 6. Esperar a CrateDB y cargar esquema --------------------------------------
 kubectl wait --for=condition=ready pod/cratedb-0 -n tfg-iot --timeout=240s
 kubectl cp ./BD/cratedb.sql tfg-iot/cratedb-0:/tmp/cratedb.sql
 kubectl exec -n tfg-iot cratedb-0 -- bash -c "crash < /tmp/cratedb.sql"
+
+kubectl rollout restart deployment grafana -n tfg-iot
 
 ### 7. Puertos de desarrollo ---------------------------------------
 for i in {1..6}; do
