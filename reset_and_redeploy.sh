@@ -33,6 +33,10 @@ for i in {1..24}; do
   sleep 10
 done || echo "⚠️ Timeout: el controlador aún no está Ready. Revisa con kubectl get pods -n ingress-nginx"
 
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=120s
 kubectl apply -f K8s/K8s_full_stack_v2.yaml
 
 ### 6. Esperar a CrateDB y cargar esquema --------------------------------------
