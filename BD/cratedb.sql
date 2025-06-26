@@ -1,11 +1,11 @@
 -- Datos IoT
 CREATE TABLE IF NOT EXISTS iot_data (
-  id TEXT PRIMARY KEY,
-  id_casa TEXT,
+  id        TEXT PRIMARY KEY,
+  id_casa   TEXT,
   tipo_dato TEXT,
   id_sensor TEXT,
-  valor OBJECT(DYNAMIC),
-  time TIMESTAMP
+  valor     OBJECT(DYNAMIC),
+  time      TIMESTAMP
 );
 
 -- Rangos por tipo (usado en validators.py)

@@ -1,0 +1,478 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tfg-iot
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource
+  namespace: tfg-iot
+  labels:
+    grafana_datasource: '1'
+data:
+  datasource.yaml: "apiVersion: 1\ndatasources:\n  - name: CrateDB\n    type: postgres\n\
+    \    access: proxy\n    url: cratedb:5432\n    database: doc\n    user: crate\n\
+    \    secureJsonData:\n      password: default\n    isDefault: true\n    jsonData:\n\
+    \      sslmode: disable\n      postgresVersion: 1200\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard
+  namespace: tfg-iot
+  labels:
+    grafana_dashboard: '1'
+data:
+  Dashboard_TFG_Simplificado_Tabla_Posicion.json: "{\n  \"id\": null,\n  \"uid\":\
+    \ null,\n  \"title\": \"Dashboard TFG IoT - Versi\\u00f3n Simplificada\",\n  \"\
+    timezone\": \"browser\",\n  \"schemaVersion\": 36,\n  \"version\": 0,\n  \"refresh\"\
+    : \"10s\",\n  \"time\": {\n    \"from\": \"now-1h\",\n    \"to\": \"now\"\n  },\n\
+    \  \"timepicker\": {\n    \"refresh_intervals\": [\n      \"5s\",\n      \"10s\"\
+    ,\n      \"30s\",\n      \"1m\",\n      \"5m\"\n    ]\n  },\n  \"templating\"\
+    : {\n    \"list\": [\n      {\n        \"name\": \"id_casa\",\n        \"type\"\
+    : \"query\",\n        \"label\": \"Casa\",\n        \"datasource\": \"CrateDB\"\
+    ,\n        \"query\": \"SELECT DISTINCT id_casa FROM iot_data\",\n        \"refresh\"\
+    : 1,\n        \"includeAll\": false,\n        \"multi\": false,\n        \"sort\"\
+    : 1\n      },\n      {\n        \"name\": \"sensor_binario\",\n        \"type\"\
+    : \"custom\",\n        \"label\": \"Sensor Binario\",\n        \"query\": \"1,2,3,4,5,6,7,8,9\"\
+    ,\n        \"includeAll\": false,\n        \"multi\": false,\n        \"current\"\
+    : {\n          \"text\": \"1\",\n          \"value\": \"1\"\n        }\n     \
+    \ }\n    ]\n  },\n  \"panels\": [\n    {\n      \"datasource\": \"CrateDB\",\n\
+    \      \"title\": \"Temperatura\",\n      \"type\": \"timeseries\",\n      \"\
+    id\": 8279,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n   \
+    \     \"x\": 0,\n        \"y\": 0\n      },\n      \"fieldConfig\": {\n      \
+    \  \"defaults\": {\n          \"unit\": \"celsius\",\n          \"thresholds\"\
+    : {\n            \"mode\": \"absolute\",\n            \"steps\": [\n         \
+    \     {\n                \"color\": \"green\",\n                \"value\": null\n\
+    \              }\n            ]\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"targets\": [\n        {\n          \"refId\": \"A\",\n\
+    \          \"datasource\": \"CrateDB\",\n          \"rawSql\": \"\\n         \
+    \       SELECT time as \\\"time\\\", valor['temperature']\\n                FROM\
+    \ iot_data\\n                WHERE tipo_dato = 'temperatura'\\n              \
+    \    AND $__timeFilter(time)\\n                  AND id_casa = '$id_casa'\\n \
+    \               ORDER BY time ASC\\n            \",\n          \"format\": \"\
+    time_series\"\n        }\n      ]\n    },\n    {\n      \"datasource\": \"CrateDB\"\
+    ,\n      \"title\": \"Humedad\",\n      \"type\": \"timeseries\",\n      \"id\"\
+    : 4267,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n       \
+    \ \"x\": 12,\n        \"y\": 0\n      },\n      \"fieldConfig\": {\n        \"\
+    defaults\": {\n          \"unit\": \"percent\",\n          \"thresholds\": {\n\
+    \            \"mode\": \"absolute\",\n            \"steps\": [\n             \
+    \ {\n                \"color\": \"green\",\n                \"value\": null\n\
+    \              }\n            ]\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"targets\": [\n        {\n          \"refId\": \"B\",\n\
+    \          \"datasource\": \"CrateDB\",\n          \"rawSql\": \"\\n         \
+    \       SELECT time as \\\"time\\\", valor['humidity']\\n                FROM\
+    \ iot_data\\n                WHERE tipo_dato = 'humedad'\\n                  AND\
+    \ $__timeFilter(time)\\n                  AND id_casa = '$id_casa'\\n        \
+    \        ORDER BY time ASC\\n            \",\n          \"format\": \"time_series\"\
+    \n        }\n      ]\n    },\n    {\n      \"datasource\": \"CrateDB\",\n    \
+    \  \"title\": \"Saturaci\\u00f3n O\\u2082\",\n      \"type\": \"timeseries\",\n\
+    \      \"id\": 6237,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\":\
+    \ 12,\n        \"x\": 0,\n        \"y\": 8\n      },\n      \"fieldConfig\": {\n\
+    \        \"defaults\": {\n          \"unit\": \"percent\",\n          \"thresholds\"\
+    : {\n            \"mode\": \"absolute\",\n            \"steps\": [\n         \
+    \     {\n                \"color\": \"green\",\n                \"value\": null\n\
+    \              }\n            ]\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"targets\": [\n        {\n          \"refId\": \"C\",\n\
+    \          \"datasource\": \"CrateDB\",\n          \"rawSql\": \"\\n         \
+    \       SELECT time as \\\"time\\\", valor['oxygen_saturation']\\n           \
+    \     FROM iot_data\\n                WHERE tipo_dato = 'saturacion_oxigeno'\\\
+    n                  AND $__timeFilter(time)\\n                  AND id_casa = '$id_casa'\\\
+    n                ORDER BY time ASC\\n            \",\n          \"format\": \"\
+    time_series\"\n        }\n      ]\n    },\n    {\n      \"datasource\": \"CrateDB\"\
+    ,\n      \"title\": \"Frecuencia Cardiaca\",\n      \"type\": \"timeseries\",\n\
+    \      \"id\": 2755,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\":\
+    \ 12,\n        \"x\": 12,\n        \"y\": 8\n      },\n      \"fieldConfig\":\
+    \ {\n        \"defaults\": {\n          \"unit\": \"bpm\",\n          \"thresholds\"\
+    : {\n            \"mode\": \"absolute\",\n            \"steps\": [\n         \
+    \     {\n                \"color\": \"green\",\n                \"value\": null\n\
+    \              }\n            ]\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"targets\": [\n        {\n          \"refId\": \"D\",\n\
+    \          \"datasource\": \"CrateDB\",\n          \"rawSql\": \"\\n         \
+    \       SELECT time as \\\"time\\\", valor['heart_rate']\\n                FROM\
+    \ iot_data\\n                WHERE tipo_dato = 'heart_rate'\\n               \
+    \   AND $__timeFilter(time)\\n                  AND id_casa = '$id_casa'\\n  \
+    \              ORDER BY time ASC\\n            \",\n          \"format\": \"time_series\"\
+    \n        }\n      ]\n    },\n    {\n      \"datasource\": \"CrateDB\",\n    \
+    \  \"title\": \"Certainty Posici\\u00f3n\",\n      \"type\": \"timeseries\",\n\
+    \      \"id\": 7462,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\":\
+    \ 12,\n        \"x\": 0,\n        \"y\": 16\n      },\n      \"fieldConfig\":\
+    \ {\n        \"defaults\": {\n          \"unit\": \"percent\",\n          \"thresholds\"\
+    : {\n            \"mode\": \"absolute\",\n            \"steps\": [\n         \
+    \     {\n                \"color\": \"green\",\n                \"value\": null\n\
+    \              }\n            ]\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"targets\": [\n        {\n          \"refId\": \"E\",\n\
+    \          \"datasource\": \"CrateDB\",\n          \"rawSql\": \"\\n         \
+    \       SELECT time as \\\"time\\\", valor['certainty']\\n                FROM\
+    \ iot_data\\n                WHERE tipo_dato = 'posicion'\\n                 \
+    \ AND $__timeFilter(time)\\n                  AND id_casa = '$id_casa'\\n    \
+    \            ORDER BY time ASC\\n            \",\n          \"format\": \"time_series\"\
+    \n        }\n      ]\n    },\n    {\n      \"datasource\": \"CrateDB\",\n    \
+    \  \"title\": \"Sensor Binario Seleccionado\",\n      \"type\": \"timeseries\"\
+    ,\n      \"id\": 9999,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\"\
+    : 24,\n        \"x\": 0,\n        \"y\": 24\n      },\n      \"fieldConfig\":\
+    \ {\n        \"defaults\": {\n          \"unit\": \"short\",\n          \"thresholds\"\
+    : {\n            \"mode\": \"absolute\",\n            \"steps\": [\n         \
+    \     {\n                \"color\": \"green\",\n                \"value\": null\n\
+    \              }\n            ]\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"targets\": [\n        {\n          \"refId\": \"Z\",\n\
+    \          \"datasource\": \"CrateDB\",\n          \"rawSql\": \"\\n         \
+    \   SELECT time as \\\"time\\\", valor[concat('sensor_', '$sensor_binario')]::integer\\\
+    n            FROM iot_data\\n            WHERE tipo_dato = 'binarios'\\n     \
+    \         AND $__timeFilter(time)\\n              AND id_casa = '$id_casa'\\n\
+    \            ORDER BY time ASC\\n        \",\n          \"format\": \"time_series\"\
+    \n        }\n      ]\n    },\n    {\n      \"datasource\": \"CrateDB\",\n    \
+    \  \"title\": \"Tabla de Coordenadas (x1, y1, x2, y2)\",\n      \"type\": \"table\"\
+    ,\n      \"id\": 8889,\n      \"gridPos\": {\n        \"h\": 10,\n        \"w\"\
+    : 24,\n        \"x\": 0,\n        \"y\": 32\n      },\n      \"fieldConfig\":\
+    \ {\n        \"defaults\": {\n          \"unit\": \"short\",\n          \"custom\"\
+    : {}\n        },\n        \"overrides\": []\n      },\n      \"targets\": [\n\
+    \        {\n          \"refId\": \"T\",\n          \"datasource\": \"CrateDB\"\
+    ,\n          \"rawSql\": \"\\n            SELECT time,\\n                   valor['x1']\
+    \ AS x1,\\n                   valor['y1'] AS y1,\\n                   valor['x2']\
+    \ AS x2,\\n                   valor['y2'] AS y2\\n            FROM iot_data\\\
+    n            WHERE tipo_dato = 'posicion'\\n              AND $__timeFilter(time)\\\
+    n              AND id_casa = '$id_casa'\\n            ORDER BY time DESC\\n  \
+    \      \",\n          \"format\": \"table\"\n        }\n      ]\n    }\n  ]\n\
+    }\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: tfg-iot
+data:
+  provider.yaml: "apiVersion: 1\nproviders:\n  - name: 'default'\n    orgId: 1\n \
+    \   type: file\n    disableDeletion: false\n    editable: true\n    options:\n\
+    \      path: /var/lib/grafana/dashboards\n"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cratedb
+  namespace: tfg-iot
+spec:
+  serviceName: cratedb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cratedb
+  template:
+    metadata:
+      labels:
+        app: cratedb
+    spec:
+      containers:
+      - name: cratedb
+        image: crate:latest
+        env:
+        - name: CRATE_HEAP_SIZE
+          value: 512m
+        - name: CRATE_SKIP_INITIAL_BOOTSTRAP_CHECKS
+          value: 'true'
+        - name: CRATE_OPTS
+          value: -Dpsql.enabled=true -Dpsql.port=5432 -Dnetwork.host=_site_
+        ports:
+        - name: http
+          containerPort: 4200
+        - name: pg
+          containerPort: 5432
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4200
+          initialDelaySeconds: 15
+          periodSeconds: 10
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cratedb
+  namespace: tfg-iot
+spec:
+  selector:
+    app: cratedb
+  ports:
+  - name: http
+    port: 4200
+    targetPort: http
+  - name: pg
+    port: 5432
+    targetPort: pg
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-api
+  namespace: tfg-iot
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flask-api
+  template:
+    metadata:
+      labels:
+        app: flask-api
+    spec:
+      containers:
+      - name: flask-api
+        image: registry.local:5000/flask-api:1.1
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        env:
+        - name: CRATE_USER
+          value: crate
+        - name: CRATE_PASSWORD
+          value: default
+        - name: CRATE_HOST
+          value: cratedb:4200
+        - name: API_KEY
+          value: 123456j
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-api
+  namespace: tfg-iot
+spec:
+  selector:
+    app: flask-api
+  ports:
+  - port: 5000
+    targetPort: 5000
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: flask-api-pdb
+  namespace: tfg-iot
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: flask-api
+---
+# Horizontal Pod Autoscaler v2 (CPU + memory)  
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: flask-api-hpa
+  namespace: tfg-iot
+spec:                        
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: flask-api
+  minReplicas: 2
+  maxReplicas: 8
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 65
+---
+# Data generator – produces synthetic load  
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-generator
+  namespace: tfg-iot
+spec:                        
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-generator
+  template:
+    metadata:
+      labels:
+        app: data-generator
+    spec:
+      containers:
+      - name: data-generator
+        image: registry.local:5000/data-generator:1.1
+        env:
+        - name: API_URL
+          value: http://flask-api:5000/data
+        - name: GEN_RATE
+          value: "200"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: tfg-iot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: admin
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: 123456j
+        - name: GF_SERVER_ROOT_URL
+          value: http://grafana.tfg.local/
+        volumeMounts:
+        - name: grafana-datasource
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: grafana-dashboard
+          mountPath: /var/lib/grafana/dashboards
+        - name: grafana-dashboard-provider
+          mountPath: /etc/grafana/provisioning/dashboards
+      volumes:
+      - name: grafana-datasource
+        configMap:
+          name: grafana-datasource
+      - name: grafana-dashboard
+        configMap:
+          name: grafana-dashboard
+      - name: grafana-dashboard-provider
+        configMap:
+          name: grafana-dashboard-provider
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: tfg-iot
+spec:
+  selector:
+    app: grafana
+  ports:
+  - port: 3000
+    targetPort: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-api
+  namespace: tfg-iot
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: api.tfg.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: flask-api
+            port:
+              number: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-grafana
+  namespace: tfg-iot
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: grafana.tfg.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-cratedb
+  namespace: tfg-iot
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: crate.tfg.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: cratedb
+            port:
+              number: 4200
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cratedb-refresh-views
+  namespace: tfg-iot
+spec:
+  schedule: "*/5 * * * *"  # Cada 5 minutos
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: refresher
+            image: crate/crash:latest
+            command:
+              - /bin/sh
+              - -c
+              - |
+                crash -c "REFRESH MATERIALIZED VIEW sensores_por_minuto;" --hosts cratedb:4200
+                crash -c "REFRESH MATERIALIZED VIEW sensores_por_hora;" --hosts cratedb:4200
+          restartPolicy: OnFailure
