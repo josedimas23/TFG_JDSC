@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Configuración
-REGISTRY="registry.local:5000"   # no cambies: el clúster tfg ya está configurado con este mirror
-CLUSTER_NAME="tfg"         # nombre del clúster kind
+# Configuración luster kind
+REGISTRY="registry.local:5000"   
+CLUSTER_NAME="tfg"         
 TAG="1.1"
 
-# Build imágenes ------------------------------------------------
+# Build imágenes 
 
 echo "[+] Construyendo flask-api…"
 docker build -t ${REGISTRY}/flask-api:${TAG} -f API/Dockerfile .
@@ -14,7 +14,7 @@ docker build -t ${REGISTRY}/flask-api:${TAG} -f API/Dockerfile .
 echo "[+] Construyendo data-generator…"
 docker build -t ${REGISTRY}/data-generator:${TAG} -f data_generator/Dockerfile .
 
-# Push / load ---------------------------------------------------
+# Push / load 
 
 echo "[+] Empujando al registry (${REGISTRY})…"
 if curl -s http://${REGISTRY}/v2/ >/dev/null 2>&1; then

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-#### Stage 1 – builder & tests 
+# PARTE 1
 FROM python:3.11-slim AS builder
 WORKDIR /app
 
@@ -9,12 +9,12 @@ COPY API/requirements.txt ./
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copiamos código y (opcional) tests
+# Copiamos código
 COPY API/ ./
 # Ejecuta pytest si existe carpeta tests (no detiene build si no la hay)
 RUN if [ -d "tests" ]; then python -m pytest -q; else echo "No tests"; fi
 
-#### Stage 2 – runtime ####################################
+# PARTE 2
 FROM python:3.11-slim
 WORKDIR /app
 
