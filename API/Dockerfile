@@ -9,7 +9,6 @@ COPY API/requirements.txt ./
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copiamos código
 COPY API/ ./
 # Ejecuta pytest si existe carpeta tests (no detiene build si no la hay)
 RUN if [ -d "tests" ]; then python -m pytest -q; else echo "No tests"; fi
@@ -21,7 +20,6 @@ WORKDIR /app
 # Copiamos todo el entorno Python del builder
 COPY --from=builder /usr/local /usr/local
 
-# Copiamos ÚNICAMENTE el código fuente de la API
 COPY API/ ./
 
 EXPOSE 5000

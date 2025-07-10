@@ -6,12 +6,10 @@ load_dotenv()
 API_KEY = "123456j"
 API_URL = os.getenv("API_URL")
 
-
 headers = {
     "Content-Type": "application/json",
     "X-API-KEY": API_KEY
 }
-
 
 def generar_dato():
     tipos = ['temperatura', 'saturacion_oxigeno', 'humedad', 'heart_rate', 'posicion', 'binarios']

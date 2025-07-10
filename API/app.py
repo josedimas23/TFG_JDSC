@@ -16,7 +16,6 @@ CRATE_PASSWORD = os.getenv("CRATE_PASSWORD", "default")
 CRATE_HOST = os.getenv("CRATE_HOST", "cratedb:4200")
 API_KEY = os.getenv("API_KEY", "123456j")
 MAX_BULK_SIZE = 500
-
 CRATE_URL = f"http://{CRATE_USER}:{CRATE_PASSWORD}@{CRATE_HOST}/_sql"
 
 register_error_handlers(app)
@@ -91,7 +90,6 @@ def health():
 @app.route('/api/health', methods=['GET'])
 def api_health():
     return jsonify({"success": True, "status": "ok"}), 200
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
