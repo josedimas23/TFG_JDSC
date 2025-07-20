@@ -38,9 +38,9 @@ kubectl label node tfg-worker2        ingress-ready=true --overwrite
 
 for i in {1..24}; do
   kubectl get pods -n ingress-nginx | grep ingress-nginx-controller | grep -q "1/1" && break
-  echo "⏳ Esperando a que ingress-nginx-controller esté listo…"
+  echo " Esperando a que ingress-nginx-controller esté listo…"
   sleep 10
-done || echo "⚠️ Timeout: el controlador aún no está Ready. Revisa con kubectl get pods -n ingress-nginx"
+done || echo "Timeout: el controlador aún no está Ready. Revisa con kubectl get pods -n ingress-nginx"
 
 # 6. Crear namespace, desplegar el configMap de Grafana y el stack completo
 
@@ -67,12 +67,12 @@ kubectl rollout restart deployment grafana -n tfg-iot
 
 for i in {1..6}; do
   if kubectl top pods -n tfg-iot &>/dev/null; then
-    echo '✅ Metrics API disponible.'
+    echo ' Metrics API disponible.'
     break
   fi
-  echo '⏳ Esperando a metrics-server…'
+  echo ' Esperando a metrics-server…'
   sleep 10
-done || echo '⚠️  Metrics API aún no disponible; comprueba en unos segundos.'
+done || echo '  Metrics API aún no disponible; comprueba en unos segundos.'
 
 echo "  • API     → http://api.tfg.local:/health"
 echo "  • Grafana → http://grafana.tfg.local/"
